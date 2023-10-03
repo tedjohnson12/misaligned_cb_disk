@@ -129,3 +129,43 @@ class Binary:
         )
         sim.add(star2)
         sim.move_to_com()
+
+class Planet:
+    """
+    Planet (as a disk proxy) parameters.
+
+    Parameters
+    ----------
+    mass : float
+        The mass of the planet.
+    semimajor_axis : float
+        The semimajor axis of the planet.
+    inclination : float
+        The inclination from the binary orbital plane.
+    lon_ascending_node : float
+        The longitude of the ascending node.
+    true_anomaly : float
+        The true anomaly to set as the initial state.
+    eccentricity : float, optional
+        The eccentricity of the planet's orbit, by default 0
+    arg_pariapsis : float, optional
+        The argument of pariapsis, by default 0
+    """
+    name = 'p'
+    def __init__(
+        self,
+        mass:float,
+        semimajor_axis:float,
+        inclination:float,
+        lon_ascending_node:float,
+        true_anomaly:float,
+        eccentricity:float=0,
+        arg_pariapsis:float=0
+    ):
+        self.mass = mass
+        self.semimajor_axis = semimajor_axis
+        self.inclination = inclination
+        self.lon_ascending_node = lon_ascending_node
+        self.true_anomaly = true_anomaly
+        self.eccentricity = eccentricity
+        self.arg_pariapsis = arg_pariapsis

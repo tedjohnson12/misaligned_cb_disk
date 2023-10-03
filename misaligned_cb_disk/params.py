@@ -1,4 +1,5 @@
-import numpy as np
+
+from rebound import Simulation, Particle
 
 G = 1
 
@@ -12,6 +13,8 @@ def get_star_masses(mb:float,fb:float):
     return m1, m2
 
 class Binary:
+    name1 = 'm1'
+    name2 = 'm2'
     def __init__(
         self,
         mb:float,
@@ -43,6 +46,23 @@ class Binary:
         """
         _, m2 = get_star_masses(self.mb,self.fb)
         return m2
+    def add_to_sim(self,sim:Simulation):
+        star1 = Particle(
+            simulation=sim,
+            hash=self.name1,
+            m=self.m1
+        )
+        sim.add(star1)
+        star2 = Particle(
+            simulation=sim,
+            a=self.ab,
+            e=self.eb,
+            hash=self.name2,
+            m=self.m2,
+            primary=star1
+        )
+        sim.add(star2)
+        sim.move_to_com()
     
     
     

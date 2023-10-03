@@ -33,8 +33,8 @@ def test_Binary_star_masses():
     )
     for (mb,fb,m1,m2) in cases:
         binary = params.Binary(mb,fb,0,0,0)
-        assert binary.m1 == pytest.approx(m1,abs=1e-6), 'Failed for m1'
-        assert binary.m2 == pytest.approx(m2,abs=1e-6), 'Failed for m2'
+        assert binary.mass1 == pytest.approx(m1,abs=1e-6), 'Failed for m1'
+        assert binary.mass2 == pytest.approx(m2,abs=1e-6), 'Failed for m2'
 
 def test_Binary_add_to_sim():
     binary = params.Binary(2,0.5,1,0,1)

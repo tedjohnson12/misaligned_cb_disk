@@ -1,68 +1,131 @@
+"""
+Parameters
+----------
 
+Control the input parameters of the rebound simulations.
+"""
 from rebound import Simulation, Particle
 
 G = 1
 
-def get_star_masses(mb:float,fb:float):
+
+def get_star_masses(mass_binary: float, mass_fraction: float):
     """
-    Get the masses of the two stars given
-    the total mass and the ratio between them.
+    Get the masses of two binary stars given
+    the total mass of the binary :math:``M_b and the 
+    mass fraction parameter :math:`f_b`
+
+    Parameters
+    ----------
+    mass_binary : float
+        The total mass of the binary
+    mass_fraction : float
+        The fraction :math:`M_2/M_b`
+
+    Returns
+    -------
+    mass1 : float
+        The mass of the primary star.
+    mass2 : float
+        The mass of the secondary star.
     """
-    m2 = mb * fb
-    m1 = mb*(1-fb)
-    return m1, m2
+    mass2 = mass_binary * mass_fraction
+    mass1 = mass_binary*(1-mass_fraction)
+    return mass1, mass2
+
 
 class Binary:
+    """
+    Binary system parameters.
+
+    Parameters
+    ----------
+    mass_binary : float
+        The total mass of the binary.
+    mass_fraction : float
+        The mass fraction :math:`M_2/M_b`.
+    semimajor_axis_binary : float
+        The semimajor axis of the binary.
+    eccentricity_binary : float
+        The eccentricity of the binary.
+
+    Attributes
+    ----------
+    mass_binary : float
+        The total mass of the binary.
+    mass_fraction : float
+        The mass fraction :math:`M_2/M_b`.
+    semimajor_axis_binary : float
+        The semimajor axis of the binary.
+    eccentricity_binary : float
+        The eccentricity of the binary.
+    name1 : str
+        The identifier for the primary star.
+    name2 : str
+        The indentifier for the secondary star.
+    mass1 : float
+        The mass of the primary star.
+    mass2 : float
+        The mass of the secondary star.
+    """
     name1 = 'm1'
     name2 = 'm2'
+
     def __init__(
         self,
-        mb:float,
-        fb:float,
-        ab:float,
-        eb:float,
-        Tb:float
+        mass_binary: float,
+        mass_fraction: float,
+        semimajor_axis_binary: float,
+        eccentricity_binary: float
     ):
-        self.mb = mb
-        self.fb = fb
-        self.ab = ab
-        self.eb = eb
-        self.Tb = Tb
+        self.mass_binary = mass_binary
+        self.mass_fraction = mass_fraction
+        self.semimajor_axis_binary = semimajor_axis_binary
+        self.eccentricity_binary = eccentricity_binary
+
     @property
-    def m1(self)->float:
+    def mass1(self) -> float:
         """
         The mass of Star 1
 
         :type: float
         """
-        m1, _ = get_star_masses(self.mb,self.fb)
-        return m1
+        mass1, _ = get_star_masses(self.mass_binary, self.mass_fraction)
+        return mass1
+
     @property
-    def m2(self)->float:
+    def mass2(self) -> float:
         """
         The mass of Star 2
 
         :type: float
         """
-        _, m2 = get_star_masses(self.mb,self.fb)
-        return m2
-    def add_to_sim(self,sim:Simulation):
+        _, mass2 = get_star_masses(self.mass_binary, self.mass_fraction)
+        return mass2
+
+    def add_to_sim(self, sim: Simulation):
+        """
+        Add binary system to a rebound Simulation.
+        Then move to the CoM frame.
+
+        Parameters
+        ----------
+        sim : rebound.Simulation
+            The simulation to add the particles to.
+        """
         star1 = Particle(
             simulation=sim,
             hash=self.name1,
-            m=self.m1
+            m=self.mass1
         )
         sim.add(star1)
         star2 = Particle(
             simulation=sim,
-            a=self.ab,
-            e=self.eb,
+            a=self.semimajor_axis_binary,
+            e=self.eccentricity_binary,
             hash=self.name2,
-            m=self.m2,
+            m=self.mass2,
             primary=star1
         )
         sim.add(star2)
         sim.move_to_com()
-    
-    
-    

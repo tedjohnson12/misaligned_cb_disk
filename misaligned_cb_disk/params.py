@@ -5,6 +5,7 @@ Parameters
 Control the input parameters of the rebound simulations.
 """
 from rebound import Simulation, Particle
+import numpy as np
 
 G = 1
 
@@ -169,3 +170,19 @@ class Planet:
         self.true_anomaly = true_anomaly
         self.eccentricity = eccentricity
         self.arg_pariapsis = arg_pariapsis
+    def add_to_sim(self,sim:Simulation):
+        com = sim.calculate_com()
+        planet = Particle(
+            simulation=sim,
+            primary=com,
+            m=self.mass,
+            a=self.semimajor_axis,
+            inc=self.inclination,
+            e=self.eccentricity,
+            Omega=self.lon_ascending_node,
+            omega=self.arg_pariapsis,
+            f=self.true_anomaly,
+            hash='p'
+        )
+        sim.add(planet)
+        sim.move_to_com()

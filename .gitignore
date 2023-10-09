@@ -118,6 +118,7 @@ celerybeat.pid
 
 # test output
 test/output/
+end_to_end_tests/output
 
 # SageMath parsed files
 *.sage.py

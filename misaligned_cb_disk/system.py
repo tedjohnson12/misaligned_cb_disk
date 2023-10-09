@@ -3,10 +3,20 @@ Circumbinary system module.
 """
 import numpy as np
 import rebound
-from typing import Callable
+from typing import Callable, Iterable
 from tqdm.auto import tqdm
 
 from misaligned_cb_disk import params
+
+UNKNOWN = 'u'
+LIBRATING = 'l'
+PROGRADE = 'p'
+RETROGRADE = 'r'
+
+def get_wrapper(desc,total,start=0):
+    def wrapper(iter:Iterable):
+        return tqdm(iter,desc=desc,total=total,initial=start,leave=False)
+    return wrapper
 
 def cross(a:np.ndarray,b:np.ndarray):
     """
@@ -233,13 +243,25 @@ class System:
         self.rp_dot = np.append(self.rp_dot,rp_dot,axis=1)
         self.rp_2dot = np.append(self.rp_2dot,rp_2dot,axis=1)
         self.t = np.append(self.t,times)
-    def integrate_orbits(self,n_orbits,capture_freq=1,**kwargs):
+    def integrate_orbits(self,n_orbits,capture_freq=1,verbose:int=1,wrapper:Callable=None):
         start_time = 0 if self.t.size==0 else self.t[-1]
         delta_time_total = self.sim.particles['p'].P*n_orbits
         delta_time_capture = self.sim.particles['p'].P/capture_freq
         
-        times = (start_time + np.arange(start=0,stop=delta_time_total,step=delta_time_capture))*np.pi
-        self.integrate(times,**kwargs)
+        times = (start_time + np.arange(start=0,stop=delta_time_total,step=delta_time_capture))
+        self.integrate(times,verbose=verbose,wrapper=wrapper)
+    def integrate_to_get_state(self,step=5,max_orbits=1000,capture_freq=1):
+        tot_orbits = 0
+        while self.state == UNKNOWN:
+            wrapper = get_wrapper(
+                desc=f'Integrating (max={max_orbits})',
+                total=tot_orbits+step,
+                start=tot_orbits
+            )
+            self.integrate_orbits(step,verbose=1,wrapper=wrapper,capture_freq=capture_freq)
+            tot_orbits += step
+            if tot_orbits > max_orbits:
+                raise RuntimeError(f'Reached limit of max_orbits={max_orbits}')
     
     @property
     def angular_momentum_binary(self):
@@ -445,7 +467,7 @@ class System:
         and
         .. math::
             \\frac{d\\Omega}{dt} = \\frac{h_y}{h_{x}^2 + h_{y}^2} \\frac{dh_x}{dt}
-                + \\frac{h_x}{h_{x}^2 + h_{y}^2} \\frac{dh_x}{dt}
+                + \\frac{h_x}{h_{x}^2 + h_{y}^2} \\frac{-dh_y}{dt}
         """
         h = self.specific_angular_momentum
         tau = self.specific_torque
@@ -454,7 +476,116 @@ class System:
         h_x_dot = dot(tau,self.x_hat)
         h_y_dot = dot(tau,self.y_hat)
         den = h_x**2 + h_y**2
-        num = h_y * h_x_dot + h_x * h_y_dot
+        num = h_y * h_x_dot - h_x * h_y_dot
         return num/den
         
+    @property
+    def icosomega(self):
+        """
+        The inclination times the cosine of the longitude of the ascending node.
         
+        Notes
+        -----
+        .. math::
+            i \\cos{\\Omega}
+        """
+        return self.inclination * np.cos(self.lon_ascending_node)
+    @property
+    def isinomega(self):
+        """
+        The inclination times the sine of the longitude of the ascending node.
+        
+        Notes
+        -----
+        .. math::
+            i \\sin{\\Omega}
+        """
+        return self.inclination * np.sin(self.lon_ascending_node)
+    @property
+    def icosomega_dot(self):
+        """
+        The time derivitive of :math:`i\\cos{\\Omega}`
+        
+        Notes
+        -----
+        let
+        .. math::
+            f = i \\cos{\\Omega}
+        
+        then
+        .. math::
+            \\frac{df}{dt} = \\dot{i} \\cos{\\Omega} + i \\frac{d}{dt}(\\cos{\\Omega})
+            = \\dot{i} \\cos{\\Omega} - i \\sin{\\Omega} \\dot{Omega}
+        """
+        i_dot = self.inclination_dot
+        i = self.inclination
+        omega = self.lon_ascending_node
+        omega_dot = self.lon_ascending_node_dot
+        f_dot = i_dot * np.cos(omega) - i * np.sin(omega) * omega_dot
+        return f_dot
+    @property
+    def isinomega_dot(self):
+        """
+        The time derivitive of :math:`i\\sin{\\Omega}`
+        
+        Notes
+        -----
+        let
+        .. math::
+            f = i \\sin{\\Omega}
+        
+        then
+        .. math::
+            \\frac{df}{dt} = \\dot{i} \\sin{\\Omega} + i \\frac{d}{dt}(\\sin{\\Omega})
+            = \\dot{i} \\sin{\\Omega} + i \\cos{\\Omega} \\dot{Omega}
+        """
+        i_dot = self.inclination_dot
+        i = self.inclination
+        omega = self.lon_ascending_node
+        omega_dot = self.lon_ascending_node_dot
+        f_dot = i_dot * np.sin(omega) + i * np.cos(omega) * omega_dot
+        return f_dot
+    @property
+    def _lon_ascending_node_diff(self):
+        omega = self.lon_ascending_node
+        delta_omega = np.diff(omega)
+        two_pi_shift = np.isclose(np.abs(delta_omega),2*np.pi,atol=0.3)
+        delta_omega = delta_omega[~two_pi_shift]
+        return delta_omega
+    @property
+    def _lon_ascending_node_ndir(self):
+        omega_diff = self._lon_ascending_node_diff
+        npos = np.sum(omega_diff>0)
+        nneg = np.sum(omega_diff<0)
+        return npos,nneg
+    @property
+    def _crossed_x_axis(self):
+        y = self.isinomega
+        return (np.sum(y>0)>0) & (np.sum(y<0)>0)
+    @property
+    def _turned_around(self):
+        npos,nneg = self._lon_ascending_node_ndir
+        if npos == 0:
+            return False
+        elif nneg == 0:
+            return False
+        else:
+            return True
+    
+    @property
+    def state(self):
+        has_turned = self._turned_around
+        has_crossed = self._crossed_x_axis
+        if not has_turned and not has_crossed: # we don't yet know anything
+            return UNKNOWN
+        elif has_turned:
+            return LIBRATING
+        else:
+            npos,nneg = self._lon_ascending_node_ndir
+            if npos > 0:
+                return RETROGRADE
+            elif nneg > 0:
+                return PROGRADE
+            else:
+                return UNKNOWN
+            

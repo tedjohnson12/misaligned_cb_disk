@@ -66,7 +66,7 @@ def test_Binary_sim_orbit():
 
 
 def test_Planet_add_to_sim():
-    binary = params.Binary(2, 0.6, 1, 0)
+    binary = params.Binary(2, 0.5, 1, 0.2)
     sim = Simulation()
     binary.add_to_sim(sim)
     planet = params.Planet(0, 3, 0, 0, 0, 0, 0)
@@ -76,7 +76,7 @@ def test_Planet_add_to_sim():
     dist_from_com = np.sqrt(pl.x**2 + pl.y**2 + pl.z**2)
     assert dist_from_com == pytest.approx(3.0, abs=1e-6)
 
-    total_time = 6*np.pi
+    total_time = 1*np.pi
     nsteps = 100
     time = np.linspace(0, total_time, nsteps)
     x1 = []

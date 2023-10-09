@@ -242,6 +242,61 @@ class System:
         self.integrate(times,**kwargs)
     
     @property
+    def angular_momentum_binary(self):
+        """
+        The angular momentum of the Binary, computed in the CoM frame of the binary.
+
+        :type: numpy.ndarray, size=(3,N)
+        """
+        l1 = cross(self.r1,self.r1_dot)*self.binary.mass1
+        l2 = cross(self.r2,self.r2_dot)*self.binary.mass2
+        return l1 + l2
+    @property
+    def eccentricity_bin(self):
+        """
+        The eccentricity vector computed using m1 & m2.
+        
+        Notes
+        -----
+        \\vec{e} = \\frac{\\vec{v} \\times \\vec{h}}{\\mu} - \\frac{\\vec{r}}{r}
+        """
+        r = self.r2 - self.r1
+        v = self.r2_dot - self.r1_dot
+        r_mag = np.sqrt(dot(r,r))
+        h = cross(r,v)
+        mu = params.G * (self.binary.mass1 + self.binary.mass2)
+        # let e = a-b
+        a = cross(v,h) / mu
+        b = r / r_mag
+        return a-b
+    @property
+    def z_hat(self):
+        """
+        The direction of the angular momentum of the binary.
+        """
+        l = self.angular_momentum_binary
+        l_mag = np.sqrt(dot(l,l))
+        return l/l_mag
+    @property
+    def x_hat(self):
+        """
+        The direction of the eccentricity vector of the binary,
+        computed using values for m2.
+        For zero eccentricity, this value is chosen to be [1.,0.,0.]
+        """
+        threshold = 1e-6
+        e = self.eccentricity_bin
+        e_mag = np.sqrt(dot(e,e))
+        zero_e = e_mag < threshold
+        return np.where(~zero_e,e/e_mag,np.array([[1.,0.,0.]]).T)
+    @property
+    def y_hat(self):
+        """
+        The y direction in our coordinate system.
+        """
+        return -cross(self.x_hat,self.z_hat)
+    
+    @property
     def specific_angular_momentum(self):
         """
         The angular momentum of the planet per unit mass.
@@ -282,7 +337,7 @@ class System:
         is the specific angular momentum.
         """
         h = self.specific_angular_momentum
-        h_z = h[self._iz]
+        h_z = dot(h,self.z_hat)
         h_mag = np.sqrt(dot(h,h))
         return np.arccos(h_z/h_mag)
     @property
@@ -345,10 +400,10 @@ class System:
         """
         h = self.specific_angular_momentum
         tau = self.specific_torque
-        h_z = h[self._iz]
+        h_z = dot(h, self.z_hat)
         h_mag = np.sqrt(dot(h,h))
         q = h_z/h_mag
-        h_z_dot = tau[self._iz]
+        h_z_dot = dot(tau,self.z_hat)
         h_mag_dot = dot(tau,h)/h_mag
         q_dot = (h_z_dot*h_mag - h_z*h_mag_dot)/h_mag**2
         num = -q_dot
@@ -356,3 +411,50 @@ class System:
         indeterminant = (num==0) & (den==0) # choose these values to be 0
         i_dot = np.where(~indeterminant,num/den,0)
         return i_dot
+    
+    @property
+    def lon_ascending_node(self):
+        """
+        The Longitude of the Ascending Node.
+        
+        Notes
+        -----
+        .. math::
+            \\Omega = \\texttt{atan2(}h_x, -h_y \\texttt{)}
+        """
+        h = self.specific_angular_momentum
+        h_x = dot(h,self.x_hat)
+        h_y = dot(h,self.y_hat)
+        return np.arctan2(h_x,-h_y)
+    @property
+    def lon_ascending_node_dot(self):
+        """
+        The time derivative of the longitude of the ascending node.
+        
+        In the case of nans, that means that there is a degeneracy
+        with argument of pariapsis (and the orbit is coplanar with
+        the binary). This should not happen in practice, and if it does,
+        reconsider your choice of parameters (e.g. set binary eccentricity to
+        1e-6 rather than 0).
+        
+        Notes
+        -----
+        .. math::
+            \\Omega = \\texttt{atan2(}h_x, -h_y \\texttt{)}
+        
+        and
+        .. math::
+            \\frac{d\\Omega}{dt} = \\frac{h_y}{h_{x}^2 + h_{y}^2} \\frac{dh_x}{dt}
+                + \\frac{h_x}{h_{x}^2 + h_{y}^2} \\frac{dh_x}{dt}
+        """
+        h = self.specific_angular_momentum
+        tau = self.specific_torque
+        h_x = dot(h,self.x_hat)
+        h_y = dot(h,self.y_hat)
+        h_x_dot = dot(tau,self.x_hat)
+        h_y_dot = dot(tau,self.y_hat)
+        den = h_x**2 + h_y**2
+        num = h_y * h_x_dot + h_x * h_y_dot
+        return num/den
+        
+        

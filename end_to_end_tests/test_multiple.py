@@ -24,20 +24,36 @@ def run(i:float,e:float)->system.System:
     
     return sys
 
+def run_full(i:float,e:float)->system.System:
+    binary = params.Binary(mb,fb,ab,e)
+    planet = params.Planet(mp,ap,i,np.pi/2,0,0,0)
+    sim = rebound.Simulation()
+    sys = system.System(binary,planet,sim)
+    sys.integrate_orbits(n_orbits=200,capture_freq=2)
+    
+    return sys
+
 if __name__ in '__main__':
 
-    fig,ax = plt.subplots(1,1)
+    fig,ax = plt.subplots(1,2)
     
     incs = np.linspace(0.1,0.99,11) * np.pi
-    # incs = [incs[1]]
     e = 0.4
     for i in incs:
         sys = run(i,e)
         state = sys.state
         color = utils.STATE_COLORS[state]
-        utils.phase_diag(sys,ax,c=color)
+        utils.phase_diag(sys,ax[0],c=color)
+        sys = run_full(i,e)
+        utils.phase_diag(sys,ax[1],c=color)
     
-    ax.set_aspect('equal')
+    ax[0].set_aspect('equal')
+    ax[0].set_xlim(ax[1].get_xlim())
+    ax[0].set_ylim(ax[1].get_ylim())
+    ax[1].set_aspect('equal')
+    ax[0].set_ylabel('$i \\sin{\\Omega}$')
+    
+    fig.text(0.5,0.15,'$i \\cos{\\Omega}$')
     
     outfile = Path(__file__).parent / 'output' / 'multiple.png'
     

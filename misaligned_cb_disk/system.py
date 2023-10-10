@@ -262,6 +262,34 @@ class System:
             tot_orbits += step
             if tot_orbits > max_orbits:
                 raise RuntimeError(f'Reached limit of max_orbits={max_orbits}')
+    def integrate_to_get_path(self,step=5,max_orbits=1000,capture_freq=1):
+        tot_orbits = 0
+        while not self.has_returned:
+            wrapper = get_wrapper(
+                desc=f'Integrating (max={max_orbits})',
+                total=tot_orbits+step,
+                start=tot_orbits
+            )
+            self.integrate_orbits(step,verbose=1,wrapper=wrapper,capture_freq=capture_freq)
+            tot_orbits += step
+            if tot_orbits > max_orbits:
+                raise RuntimeError(f'Reached limit of max_orbits={max_orbits}')
+        
+    
+    @property
+    def has_returned(self):
+        if len(self.t) < 2:
+            return False
+        else:
+            x = self.icosomega
+            y = self.isinomega
+            dx = x[1]-x[0]
+            dy = y[1]-y[0]
+            dr = np.sqrt(dx**2 + dy**2)
+            r = np.sqrt((x-x[0])**2 + (y-y[0])**2)
+            return np.any(r[2:] < dr)
+        
+        
     
     @property
     def angular_momentum_binary(self):

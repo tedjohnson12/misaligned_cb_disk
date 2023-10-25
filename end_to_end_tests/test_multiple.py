@@ -9,7 +9,7 @@ mb = 1
 fb = 0.5
 ab = 0.2
 
-mp = 1e-3
+mp = 0e-3
 ap = 1
 
 n_orbits = 10
@@ -29,7 +29,8 @@ def run_full(i:float,e:float)->system.System:
     planet = params.Planet(mp,ap,i,np.pi/2,0,0,0)
     sim = rebound.Simulation()
     sys = system.System(binary,planet,sim)
-    sys.integrate_orbits(n_orbits=200,capture_freq=2)
+    sys.integrate_to_get_path(step=10, capture_freq=2)
+    # sys.integrate_orbits(n_orbits=200,capture_freq=2)
     
     return sys
 
@@ -37,7 +38,7 @@ if __name__ in '__main__':
 
     fig,ax = plt.subplots(1,2)
     
-    incs = np.linspace(0.1,0.99,11) * np.pi
+    incs = -np.linspace(0.001,0.999,9) * np.pi
     e = 0.4
     for i in incs:
         sys = run(i,e)
@@ -45,6 +46,7 @@ if __name__ in '__main__':
         color = utils.STATE_COLORS[state]
         utils.phase_diag(sys,ax[0],c=color)
         sys = run_full(i,e)
+        print(f'i/pi={i/np.pi:.2f}, state={state}, area={sys.normalized_area:.2f}')
         utils.phase_diag(sys,ax[1],c=color)
     
     ax[0].set_aspect('equal')

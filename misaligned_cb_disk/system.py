@@ -7,6 +7,7 @@ from typing import Callable, Iterable
 from tqdm.auto import tqdm
 
 from misaligned_cb_disk import params
+from misaligned_cb_disk.integrate import integrate_r_and_theta, cast_r_and_theta
 
 UNKNOWN = 'u'
 LIBRATING = 'l'
@@ -616,4 +617,22 @@ class System:
                 return PROGRADE
             else:
                 return UNKNOWN
+    @property
+    def _area(self)->float:
+        if not self.has_returned:
+            raise RuntimeError('System has not yet returned.')
+        else:
+            return integrate_r_and_theta(
+                *cast_r_and_theta(
+                    self.inclination,
+                    self.lon_ascending_node
+                )
+            )
+    @property
+    def normalized_area(self)->float:
+        area = self._area
+        if self.state == RETROGRADE:
+            area = 4*np.pi + area
+        return np.abs(area/(4*np.pi))
+        
             

@@ -10,12 +10,58 @@ from misaligned_cb_disk import params
 from misaligned_cb_disk.integrate import integrate_r_and_theta, cast_r_and_theta
 
 UNKNOWN = 'u'
+"""
+The state of the system is unknown.
+
+:type: str
+"""
 LIBRATING = 'l'
+"""
+The system is in a libration.
+
+:type: str
+"""
 PROGRADE = 'p'
+"""
+The system is prograde.
+
+:type: str
+"""
 RETROGRADE = 'r'
+"""
+The system is retrograde.
+
+:type: str
+"""
 
 def get_wrapper(desc,total,start=0):
+    """
+    Returns a wrapper function that wraps an iterable object with a tqdm progress bar.
+
+    Parameters
+    ----------
+    desc : str
+        A string description of the progress bar.
+    total : int
+        The total number of iterations.
+    start : int, optional
+        The initial value of the progress bar. Defaults to 0.
+
+    Returns
+    -------
+    wrapper : function
+        A wrapper function that takes an iterable object and returns a tqdm progress bar.
+    """
     def wrapper(iter:Iterable):
+        """
+        A function that wraps an iterable object with a tqdm progress bar.
+
+        Parameters:
+            iter (Iterable): The iterable object to be wrapped.
+
+        Returns:
+            tqdm: The wrapped iterable object with a progress bar.
+        """
         return tqdm(iter,desc=desc,total=total,initial=start,leave=False)
     return wrapper
 
@@ -173,12 +219,35 @@ class System:
     def _add_to_sim(self):
         """
         Add the particles to the simulation.
+        
+        :type: NoneType
         """
         self.binary.add_to_sim(self.sim)
         self.planet.add_to_sim(self.sim)
         self.sim.integrator = self._integrator
     
-    def integrate(self,times:np.ndarray,verbose:int=1,wrapper:Callable=None):
+    def integrate(
+        self,
+        times:np.ndarray,
+        verbose:int=1,
+        wrapper:Callable=None
+    ):
+        """
+        Integrates the system over a given set of time steps.
+        
+        Parameters
+        ----------
+        times : np.ndarray
+            An array of time steps at which to integrate the system.
+        verbose : int, optional
+            The level of verbosity during integration. Defaults to 1.
+        wrapper : Callable, optional
+            A function to wrap the iterator during integration. Defaults to None.
+
+        Returns
+        -------
+        None
+        """
         if not times.ndim == 1:
             raise ValueError('times must be 1d')
         n_steps = times.shape[0]
@@ -193,7 +262,21 @@ class System:
         rp_dot = np.empty(shape)
         rp_2dot = np.empty(shape)
         
-        def wrap(it):
+        def wrap(it)->Iterable:
+            """
+            Wrap the given iterable with a progress bar if verbose is set to 1, 
+            otherwise return the iterable as is.
+
+            Parameters
+            ----------
+            it : iterable
+                The iterable to be wrapped.
+
+            Returns
+            -------
+            iterable
+                The wrapped iterable with a progress bar if verbose is set to 1, otherwise the original iterable.
+            """
             if verbose==1:
                 return tqdm(it,desc='integrating',total=n_steps)
             else:
@@ -244,14 +327,65 @@ class System:
         self.rp_dot = np.append(self.rp_dot,rp_dot,axis=1)
         self.rp_2dot = np.append(self.rp_2dot,rp_2dot,axis=1)
         self.t = np.append(self.t,times)
-    def integrate_orbits(self,n_orbits,capture_freq=1,verbose:int=1,wrapper:Callable=None):
+    def integrate_orbits(
+        self,
+        n_orbits:int,
+        capture_freq:float=1.0,
+        verbose:int=1,
+        wrapper:Callable=None
+    ):
+        """
+        Integrates simulation according to the orbital period of the planet.
+
+        Parameters
+        ----------
+        n_orbits : int
+            The number of orbits to integrate.
+        capture_freq : float, optional
+            The frequency of capturing the orbits. Defaults to 1.0.
+        verbose : int, optional
+            The verbosity level. Defaults to 1.
+        wrapper : Callable, optional
+            A wrapper function. Defaults to None.
+
+        Returns
+        -------
+        None
+        """
         start_time = 0 if self.t.size==0 else self.t[-1]
         delta_time_total = self.sim.particles['p'].P*n_orbits
         delta_time_capture = self.sim.particles['p'].P/capture_freq
         
         times = (start_time + np.arange(start=0,stop=delta_time_total,step=delta_time_capture))
         self.integrate(times,verbose=verbose,wrapper=wrapper)
-    def integrate_to_get_state(self,step=5,max_orbits=1000,capture_freq=1):
+    def integrate_to_get_state(
+        self,
+        step=5,
+        max_orbits=1000,
+        capture_freq=1
+    ):
+        """
+        Integrates the system the minimum amount of time to
+        determine its state.
+
+        Parameters
+        ----------
+        step : int, optional
+            The step size for integration in units of orbits. Defaults to 5.
+        max_orbits : int, optional
+            The maximum number of orbits to integrate. Defaults to 1000.
+        capture_freq : int, optional
+            The frequency at which to capture the state in units of 1/orbit. Defaults to 1.
+
+        Raises
+        ------
+        RuntimeError
+            If the total number of orbits exceeds the maximum limit.
+
+        Returns
+        -------
+        None
+        """
         tot_orbits = 0
         while self.state == UNKNOWN:
             wrapper = get_wrapper(

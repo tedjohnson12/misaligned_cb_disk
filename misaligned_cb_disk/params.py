@@ -5,7 +5,6 @@ Parameters
 Control the input parameters of the rebound simulations.
 """
 from rebound import Simulation, Particle
-import numpy as np
 
 G = 1
 
@@ -131,6 +130,7 @@ class Binary:
         sim.add(star2)
         sim.move_to_com()
 
+
 class Planet:
     """
     Planet (as a disk proxy) parameters.
@@ -153,15 +153,16 @@ class Planet:
         The argument of pariapsis, by default 0
     """
     name = 'p'
+
     def __init__(
         self,
-        mass:float,
-        semimajor_axis:float,
-        inclination:float,
-        lon_ascending_node:float,
-        true_anomaly:float,
-        eccentricity:float=0,
-        arg_pariapsis:float=0
+        mass: float,
+        semimajor_axis: float,
+        inclination: float,
+        lon_ascending_node: float,
+        true_anomaly: float,
+        eccentricity: float = 0,
+        arg_pariapsis: float = 0
     ):
         self.mass = mass
         self.semimajor_axis = semimajor_axis
@@ -170,7 +171,16 @@ class Planet:
         self.true_anomaly = true_anomaly
         self.eccentricity = eccentricity
         self.arg_pariapsis = arg_pariapsis
-    def add_to_sim(self,sim:Simulation):
+
+    def add_to_sim(self, sim: Simulation):
+        """
+        Add the planet to the rebound simulation.
+
+        Parameters
+        ----------
+        sim : rebound.Simulation
+            The simulation to add the particle to.
+        """
         com = sim.calculate_com()
         planet = Particle(
             simulation=sim,

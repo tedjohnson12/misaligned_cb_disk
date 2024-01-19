@@ -701,7 +701,8 @@ class System:
         h_y_dot = dot(tau, self.y_hat)
         den = h_x**2 + h_y**2
         num = h_y * h_x_dot - h_x * h_y_dot
-        return num/den
+        inteterminant = (num == 0) & (den == 0)  # choose these values to be 0
+        return np.where(inteterminant, 0, num/den)
 
     @property
     def icosomega(self) -> np.ndarray:

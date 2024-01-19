@@ -181,7 +181,7 @@ class Planet:
         sim : rebound.Simulation
             The simulation to add the particle to.
         """
-        com = sim.calculate_com()
+        com = sim.com()
         planet = Particle(
             simulation=sim,
             primary=com,

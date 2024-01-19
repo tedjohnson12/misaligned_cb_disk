@@ -293,7 +293,7 @@ class Searcher:
             arg_pariapsis=self._arg_pariapsis_planet
         )
 
-    def _system(self, inclination: float, sim: rebound.Simulation = None) -> System:
+    def get_system(self, inclination: float, sim: rebound.Simulation = None) -> System:
         """
         Generate a system given an inclination.
 
@@ -327,7 +327,7 @@ class Searcher:
         str
             The final state of the system.
         """
-        sys = self._system(inclination=inclination)
+        sys = self.get_system(inclination=inclination)
         sys.integrate_to_get_state(
             step=self._integration_orbit_step,
             max_orbits=self._integration_max_orbits,

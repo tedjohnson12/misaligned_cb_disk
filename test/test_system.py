@@ -3,6 +3,7 @@ Tests for misaligned_cb_disk.system
 """
 import rebound
 import numpy as np
+import pytest
 
 from misaligned_cb_disk import system, params
 
@@ -111,4 +112,4 @@ def test_eccentricity_vector():
     
 
 if __name__ in '__main__':
-    test_properties()
+    pytest.main(args=[__file__])

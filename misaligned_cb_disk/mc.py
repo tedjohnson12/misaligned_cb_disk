@@ -4,6 +4,8 @@ Monte Carlo Simulation module
 from typing import List
 import numpy as np
 import rebound
+from scipy.stats import bootstrap
+from tqdm.auto import tqdm, trange
 
 from misaligned_cb_disk import params
 from misaligned_cb_disk.system import System
@@ -147,9 +149,17 @@ class Sampler:
     def get_frac(self,state):
         return self.states.count(state)/self.n_sampled
     
+    def bootstrap(self,state:str,confidence_level:float=0.95):
+        def _statistic(arr:List[str]):
+            unique, counts = np.unique(arr, return_counts=True)
+            return dict(zip(unique, counts))[state]/len(arr)
+        return bootstrap([self.states], _statistic, confidence_level=confidence_level)
+            
+        
+    
     
     def sim_n_samples(self,N:int):
-        for i in range(N):
+        for _ in trange(N, desc='Sampling', unit='samples'):
             next_inclination, next_lon_ascending_node, state = self.get_next()
             self.inclinations.append(next_inclination)
             self.lon_ascending_nodes.append(next_lon_ascending_node)

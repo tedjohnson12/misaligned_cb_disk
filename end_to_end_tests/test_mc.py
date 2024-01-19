@@ -28,4 +28,6 @@ if __name__ in '__main__':
         arg_pariapsis_planet=ARG_PARIAPSIS,
         precision=precision
     )
-    sampler.sim_n_samples(100)
+    sampler.sim_n_samples(1000)
+    res = sampler.bootstrap('l',confidence_level=0.95)
+    print(f'There is a 95% chance it falls between {res.confidence_interval[0]:.3f} and {res.confidence_interval[1]:.3f}')

@@ -132,8 +132,11 @@ class Sampler:
         return sys.state
     
     def get_next(self):
-        next_inclination = self.rng.uniform(0, 2*np.pi)
-        next_lon_ascending_node = self.rng.uniform(0, 2*np.pi)
+        
+        next_lon_ascending_node = self.rng.random()*2*np.pi
+        x = self.rng.random()
+        next_inclination = np.arcsin(2*x - 1) + np.pi/2
+        
         state = self.get_simulation_state(
             inclination=next_inclination,
             lon_ascending_node=next_lon_ascending_node
@@ -152,12 +155,9 @@ class Sampler:
     def bootstrap(self,state:str,confidence_level:float=0.95):
         def _statistic(arr:List[str]):
             unique, counts = np.unique(arr, return_counts=True)
-            return dict(zip(unique, counts))[state]/len(arr)
+            return dict(zip(unique, counts)).get(state,0)/len(arr)
         return bootstrap([self.states], _statistic, confidence_level=confidence_level)
             
-        
-    
-    
     def sim_n_samples(self,N:int):
         for _ in trange(N, desc='Sampling', unit='samples'):
             next_inclination, next_lon_ascending_node, state = self.get_next()
@@ -166,5 +166,16 @@ class Sampler:
             self.states.append(state)
         for state in ['p','r','l']:
             print(state, self.get_frac(state), self.frac_uncertainty)
+    
+    def sim_until_precision(self,precision:float,batch_size:int=100,max_samples = 1000):
+        while self.n_sampled < max_samples:
+            self.sim_n_samples(batch_size)
+            res = self.bootstrap('l',confidence_level=0.95)
+            confidence_interval_width = res.confidence_interval[1]-res.confidence_interval[0]
+            print(f'After {self.n_sampled} samples, the confidence interval width is {confidence_interval_width:.3f}')
+            if confidence_interval_width < precision:
+                print(f'Precision of {precision} achieved after {self.n_sampled} samples')
+                break
+        
         
     

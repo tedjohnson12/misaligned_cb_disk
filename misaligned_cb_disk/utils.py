@@ -13,6 +13,12 @@ STATE_COLORS = {
     system.LIBRATING:'xkcd:violet',
     system.UNKNOWN:'xkcd:mint green'
 }
+STATE_LONG_NAMES = {
+    system.PROGRADE:'Prograde',
+    system.RETROGRADE:'Retrograde',
+    system.LIBRATING:'Librating',
+    system.UNKNOWN:'Unknown'
+}
 
 def phase_diag(sys:System,ax:Axes=None,**kwargs):
     """

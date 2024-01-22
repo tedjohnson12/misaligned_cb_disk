@@ -1,19 +1,23 @@
 
+from pathlib import Path
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from misaligned_cb_disk import mc
+from misaligned_cb_disk import utils
 
 MASS_BINARY = 1
 FRAC_BINARY = 0.5
 SEP_BINARY = 0.2
 ECC_BINARY = 0.2
 
-MASS_PLANET = 1e-3
+MASS_PLANET = 0e-3
 SEP_PLANET = 1
 NU = 0
 ECC_PLANET = 0
 ARG_PARIAPSIS = 0
 
-precision = np.pi/180 * 0.5
+precision = 0.07
 
 if __name__ in '__main__':
     sampler = mc.Sampler(
@@ -28,6 +32,27 @@ if __name__ in '__main__':
         arg_pariapsis_planet=ARG_PARIAPSIS,
         precision=precision
     )
-    sampler.sim_n_samples(1000)
+    sampler.sim_until_precision(precision,batch_size=100,max_samples=1000)
     res = sampler.bootstrap('l',confidence_level=0.95)
     print(f'There is a 95% chance it falls between {res.confidence_interval[0]:.3f} and {res.confidence_interval[1]:.3f}')
+    
+    inclinations = np.array(sampler.inclinations)
+    lon_ascending_nodes = np.array(sampler.lon_ascending_nodes)
+    states = sampler.states
+    colors = [utils.STATE_COLORS[state] for state in states]
+    fig,ax = plt.subplots(1,1)
+    isin = inclinations * np.sin(lon_ascending_nodes)
+    icos = inclinations * np.cos(lon_ascending_nodes)
+    ax.scatter(icos,isin,marker='.',c=colors)
+    ax.set_aspect('equal')
+    ax.set_xlabel('$i \\cos{\\Omega}$')
+    ax.set_ylabel('$i \\sin{\\Omega}$')
+    fig.legend(
+        handles=[
+            Line2D([0],[0],marker='.',linestyle='None',markerfacecolor=utils.STATE_COLORS[state],color=utils.STATE_COLORS[state]) for state in utils.STATE_COLORS
+        ],
+        labels=[utils.STATE_LONG_NAMES[state] for state in utils.STATE_COLORS],
+    )
+    fig.savefig(Path(__file__).parent / 'output' / 'mc.png',facecolor='w')
+    0
+    

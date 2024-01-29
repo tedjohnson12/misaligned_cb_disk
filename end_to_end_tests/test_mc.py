@@ -32,7 +32,6 @@ if __name__ in '__main__':
         true_anomaly_planet=NU,
         eccentricity_planet=ECC_PLANET,
         arg_pariapsis_planet=ARG_PARIAPSIS,
-        precision=precision
     )
     sampler.sim_until_precision(precision,batch_size=100,max_samples=1000)
     res = sampler.bootstrap('l',confidence_level=0.95)

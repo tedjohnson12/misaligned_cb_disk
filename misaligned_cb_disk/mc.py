@@ -44,7 +44,6 @@ class Sampler:
         true_anomaly_planet: float,
         eccentricity_planet: float = 0,
         arg_pariapsis_planet: float = 0,
-        precision: float = np.pi*0.1,
         rng: np.random.Generator = np.random.default_rng()
     ):
         self._binary = params.Binary(
@@ -58,7 +57,6 @@ class Sampler:
         self._true_anomaly_planet = true_anomaly_planet
         self._eccentricity_planet = eccentricity_planet
         self._arg_pariapsis_planet = arg_pariapsis_planet
-        self.precision = precision
         self.inclinations: List[float] = []
         self.lon_ascending_nodes: List[float] = []
         self.states: List[str] = []

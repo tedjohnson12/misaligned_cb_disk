@@ -5,19 +5,21 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from misaligned_cb_disk import mc
 from misaligned_cb_disk import utils
+from misaligned_cb_disk.analytic import Zanazzi2018
 
 MASS_BINARY = 1
 FRAC_BINARY = 0.5
 SEP_BINARY = 0.2
 ECC_BINARY = 0.2
 
-MASS_PLANET = 0e-3
+MASS_PLANET = 1e-2
 SEP_PLANET = 1
 NU = 0
 ECC_PLANET = 0
 ARG_PARIAPSIS = 0
 
 precision = 0.07
+
 
 if __name__ in '__main__':
     sampler = mc.Sampler(
@@ -39,6 +41,12 @@ if __name__ in '__main__':
     inclinations = np.array(sampler.inclinations)
     lon_ascending_nodes = np.array(sampler.lon_ascending_nodes)
     states = sampler.states
+    
+    # analytic_probs = [Zanazzi2018.prob_polar(inclination, ECC_BINARY) for inclination in inclinations]
+    # frac_polar = np.mean(analytic_probs)
+    frac_polar = Zanazzi2018.frac_polar(ECC_BINARY,n_points=100)
+    print(f'According to {Zanazzi2018.citet}, the fraction of polar orbits is {frac_polar:.3f}')
+    
     colors = [utils.STATE_COLORS[state] for state in states]
     fig,ax = plt.subplots(1,1)
     isin = inclinations * np.sin(lon_ascending_nodes)

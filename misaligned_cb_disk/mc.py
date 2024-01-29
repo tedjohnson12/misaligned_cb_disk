@@ -10,6 +10,22 @@ from tqdm.auto import tqdm, trange
 from misaligned_cb_disk import params
 from misaligned_cb_disk.system import System
 
+def inclination_transform(u:float)->float:
+    """
+    Transform :math:`u \\in [0,1)` to :math:`i \\in [0,\\pi)`
+    
+    Parameters
+    ----------
+    u : float
+        The uniform random variable
+    
+    Returns
+    -------
+    float
+        The transformed random variable
+    """
+    return np.arcsin(2*u - 1) + np.pi/2
+
 class Sampler:
     """
     Monte Carlo sampler
@@ -135,7 +151,7 @@ class Sampler:
         
         next_lon_ascending_node = self.rng.random()*2*np.pi
         x = self.rng.random()
-        next_inclination = np.arcsin(2*x - 1) + np.pi/2
+        next_inclination = inclination_transform(x)
         
         state = self.get_simulation_state(
             inclination=next_inclination,

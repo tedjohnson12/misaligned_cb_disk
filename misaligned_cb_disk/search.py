@@ -268,6 +268,7 @@ class Searcher:
             )
         ]
         self.precision = precision
+        self.Flags.done = False
 
     def _planet(self, inclination: float) -> params.Planet:
         """

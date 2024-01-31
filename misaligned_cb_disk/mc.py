@@ -31,7 +31,7 @@ class Sampler:
     Monte Carlo sampler
     """
     _integration_orbit_step = 5
-    _integration_max_orbits = 1000
+    _integration_max_orbits = 10000
     _integration_capture_freq = 1
     def __init__(
         self,
@@ -160,9 +160,7 @@ class Sampler:
     @property
     def n_sampled(self):
         return len(self.states)
-    @property
-    def frac_uncertainty(self):
-        return 1/np.sqrt(self.n_sampled)
+
     def get_frac(self,state):
         return self.states.count(state)/self.n_sampled
     
@@ -178,8 +176,6 @@ class Sampler:
             self.inclinations.append(next_inclination)
             self.lon_ascending_nodes.append(next_lon_ascending_node)
             self.states.append(state)
-        for state in ['p','r','l']:
-            print(state, self.get_frac(state), self.frac_uncertainty)
     
     def sim_until_precision(self,precision:float,batch_size:int=100,max_samples = 1000):
         while self.n_sampled < max_samples:

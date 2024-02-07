@@ -47,7 +47,7 @@ class Sampler:
         eccentricity_planet: float = 0,
         arg_pariapsis_planet: float = 0,
         gr: bool = False,
-        rng: np.random.Generator = np.random.default_rng(),
+        rng: np.random.Generator = None,
         db_path: Path = None
     ):
         self._binary = params.Binary(
@@ -232,8 +232,10 @@ class Sampler:
             self.inclinations.append(next_inclination)
             self.lon_ascending_nodes.append(next_lon_ascending_node)
             self.states.append(state)
-            self._db_insert(inclination=next_inclination,lon_ascending_node=next_lon_ascending_node,state=state)
-        self.conn.commit()
+            if self.conn is not None:
+                self._db_insert(inclination=next_inclination,lon_ascending_node=next_lon_ascending_node,state=state)
+        if self.conn is not None:
+            self.conn.commit()
     
     def get_confidence_interval_width(self,state:str,confidence_level:float=0.95):
         if len(self.states) < 2:

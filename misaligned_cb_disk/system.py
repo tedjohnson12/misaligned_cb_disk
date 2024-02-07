@@ -180,6 +180,7 @@ class System:
         inclination_planet: float,
         lon_ascending_node_planet: float,
         true_anomaly_planet: float,
+        gr: bool,
         eccentricity_planet: float = 0,
         arg_pariapsis_planet: float = 0,
         sim: rebound.Simulation = None
@@ -230,7 +231,7 @@ class System:
             eccentricity=eccentricity_planet,
             arg_pariapsis=arg_pariapsis_planet
         )
-        return cls(binary, planet, sim)
+        return cls(binary, planet, gr, sim)
 
     def _add_to_sim(self):
         """

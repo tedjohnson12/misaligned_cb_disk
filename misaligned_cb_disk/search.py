@@ -5,12 +5,14 @@ Search in inclination space to find the transitions between
 different types of orbits.
 """
 from typing import List, Tuple
+from pathlib import Path
 import rebound
 import numpy as np
 
 from misaligned_cb_disk.system import System
 from misaligned_cb_disk import system
 from misaligned_cb_disk import params
+from misaligned_cb_disk import db
 
 
 class Transition:
@@ -248,7 +250,8 @@ class Searcher:
         eccentricity_planet: float = 0,
         arg_pariapsis_planet: float = 0,
         precision: float = np.pi*0.1,
-        gr: bool = False
+        gr: bool = False,
+        db_path: Path = None
     ):
         self._binary = params.Binary(
             mass_binary=mass_binary,
@@ -271,6 +274,10 @@ class Searcher:
         self.precision = precision
         self.Flags.done = False
         self.gr = gr
+        self.conn = db.connect(db_path)
+        if self.conn is not None:
+            if db.is_empty(self.conn):
+                db.setup(self.conn, overwrite=False)
 
     def _planet(self, inclination: float) -> params.Planet:
         """
@@ -313,6 +320,57 @@ class Searcher:
             sim=sim,
             gr=self.gr
         )
+    
+    def query_state(self, inclination: float):
+        """
+        Query the database for a state given an inclination.
+        If the state is not found, return None.
+        """
+        if self.conn is None:
+            return None
+        result = db.get_var(
+            conn=self.conn,
+            variable='state',
+            mass_binary=self._binary.mass_binary,
+            mass_fraction=self._binary.mass_fraction,
+            semimajor_axis_binary=self._binary.semimajor_axis_binary,
+            eccentricity_binary=self._binary.eccentricity_binary,
+            mass_planet=self._mass_planet,
+            semimajor_axis_planet=self._semimajor_axis_planet,
+            true_anomaly_planet=self._true_anomaly_planet,
+            lon_ascending_node=self._lon_ascending_node_planet,
+            eccentricity_planet=self._eccentricity_planet,
+            inclination=inclination,
+            arg_pariapsis_planet=self._arg_pariapsis_planet,
+            has_gr=self.gr
+        )
+        if len(result) == 0:
+            return None
+        if len(result) > 1:
+            raise RuntimeError('More than one result found in database')
+        return result[0][0]
+    
+    def _db_insert(self, inclination: float,state:str,commit:bool=False):
+        """
+        Insert the data into the database.
+        """
+        db.insert(
+            conn=self.conn,
+            mass_binary=self._binary.mass_binary,
+            mass_fraction=self._binary.mass_fraction,
+            semimajor_axis_binary=self._binary.semimajor_axis_binary,
+            eccentricity_binary=self._binary.eccentricity_binary,
+            mass_planet=self._mass_planet,
+            semimajor_axis_planet=self._semimajor_axis_planet,
+            true_anomaly_planet=self._true_anomaly_planet,
+            eccentricity_planet=self._eccentricity_planet,
+            arg_pariapsis_planet=self._arg_pariapsis_planet,
+            inclination=inclination,
+            lon_ascending_node=self._lon_ascending_node_planet,
+            has_gr=self.gr,
+            state=state,
+            commit=commit
+        )
 
     def get_simulation_state(self, inclination: float):
         """
@@ -331,12 +389,17 @@ class Searcher:
         str
             The final state of the system.
         """
+        db_res = self.query_state(inclination)
+        if db_res is not None:
+            return db_res
         sys = self.get_system(inclination=inclination)
         sys.integrate_to_get_state(
             step=self._integration_orbit_step,
             max_orbits=self._integration_max_orbits,
             capture_freq=self._integration_capture_freq
         )
+        if self.conn is not None:
+            self._db_insert(inclination,sys.state,commit=True)
         return sys.state
 
     def get_current_transition(self) -> Tuple[Transition, List[Transition]]:

@@ -3,6 +3,7 @@ Analytic solutions
 """
 
 import numpy as np
+from scipy.integrate import simpson
 
 class Zanazzi2018:
     """
@@ -37,12 +38,14 @@ class Zanazzi2018:
     def prob_polar(inclination, ecc_b):
         return 1 - 2*Zanazzi2018.omega_min(inclination, ecc_b)/np.pi
     @staticmethod
-    def frac_polar(ecc_b:float, n_points:int=100):
+    def frac_polar(ecc_b:float, n_points:int=2047):
+        if n_points%2 == 0:
+            raise ValueError('n_points must be odd')
         inclination = np.linspace(0, np.pi, n_points)
         jacobian = np.sin(inclination)
         prob_polar = np.array([Zanazzi2018.prob_polar(i, ecc_b) for i in inclination])
-        numerator = np.trapz(prob_polar*jacobian,inclination)
-        denominator = np.trapz(jacobian,inclination)
+        numerator = simpson(y=prob_polar*jacobian,x=inclination)
+        denominator = simpson(y=jacobian,x=inclination)
         return numerator/denominator
         
         

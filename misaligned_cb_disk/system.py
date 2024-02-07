@@ -121,6 +121,8 @@ class System:
         The binary star parameters.
     planet : params.Planet
         The planetary parameters.
+    gr : bool
+        Whether or not to include General Relativity.
 
     Attributes
     ----------
@@ -128,6 +130,8 @@ class System:
         The binary star parameters.
     planet : params.Planet
         The planetary parameters.
+    gr : bool
+        Whether or not to include General Relativity.
     sim : rebound.Simulation
             The simulation to add the particles to, by default None
     """
@@ -141,10 +145,12 @@ class System:
         self,
         binary: params.Binary,
         planet: params.Planet,
+        gr: bool,
         sim: rebound.Simulation = None
     ):
         self.binary = binary
         self.planet = planet
+        self.gr = gr
         if sim is None:
             sim = rebound.Simulation()
         self.sim = sim
@@ -232,7 +238,7 @@ class System:
 
         :type: NoneType
         """
-        self.binary.add_to_sim(self.sim)
+        self.binary.add_to_sim(self.sim,self.gr)
         self.planet.add_to_sim(self.sim)
         self.sim.integrator = self._integrator
 

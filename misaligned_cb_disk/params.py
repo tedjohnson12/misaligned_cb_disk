@@ -5,6 +5,8 @@ Parameters
 Control the input parameters of the rebound simulations.
 """
 from rebound import Simulation, Particle
+import reboundx
+from reboundx import constants
 
 G = 1
 
@@ -103,7 +105,7 @@ class Binary:
         _, mass2 = get_star_masses(self.mass_binary, self.mass_fraction)
         return mass2
 
-    def add_to_sim(self, sim: Simulation):
+    def add_to_sim(self, sim: Simulation, gr:bool):
         """
         Add binary system to a rebound Simulation.
         Then move to the CoM frame.
@@ -129,6 +131,13 @@ class Binary:
         )
         sim.add(star2)
         sim.move_to_com()
+        if gr:
+            rebx = reboundx.Extras(sim)
+            gx = rebx.load_force('gr')
+            rebx.add_force(gx)
+            gx.params["c"] = constants.C
+            sim.particles[self.name1].params['gr_source'] = 1
+            sim.particles[self.name2].params['gr_source'] = 1
 
 
 class Planet:

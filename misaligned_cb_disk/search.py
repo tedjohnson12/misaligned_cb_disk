@@ -247,7 +247,8 @@ class Searcher:
         true_anomaly_planet: float,
         eccentricity_planet: float = 0,
         arg_pariapsis_planet: float = 0,
-        precision: float = np.pi*0.1
+        precision: float = np.pi*0.1,
+        gr: bool = False
     ):
         self._binary = params.Binary(
             mass_binary=mass_binary,
@@ -269,6 +270,7 @@ class Searcher:
         ]
         self.precision = precision
         self.Flags.done = False
+        self.gr = gr
 
     def _planet(self, inclination: float) -> params.Planet:
         """
@@ -308,7 +310,8 @@ class Searcher:
         return System(
             binary=self._binary,
             planet=self._planet(inclination=inclination),
-            sim=sim
+            sim=sim,
+            gr=self.gr
         )
 
     def get_simulation_state(self, inclination: float):

@@ -2,13 +2,15 @@
 Monte Carlo Simulation module
 """
 from typing import List
+from pathlib import Path
 import numpy as np
 import rebound
 from scipy.stats import bootstrap
-from tqdm.auto import tqdm, trange
+from tqdm.auto import trange
 
 from misaligned_cb_disk import params
 from misaligned_cb_disk.system import System
+from misaligned_cb_disk import db
 
 def inclination_transform(u:float)->float:
     """
@@ -44,7 +46,9 @@ class Sampler:
         true_anomaly_planet: float,
         eccentricity_planet: float = 0,
         arg_pariapsis_planet: float = 0,
-        rng: np.random.Generator = np.random.default_rng()
+        gr: bool = False,
+        rng: np.random.Generator = np.random.default_rng(),
+        db_path: Path = None
     ):
         self._binary = params.Binary(
             mass_binary=mass_binary,
@@ -57,10 +61,39 @@ class Sampler:
         self._true_anomaly_planet = true_anomaly_planet
         self._eccentricity_planet = eccentricity_planet
         self._arg_pariapsis_planet = arg_pariapsis_planet
-        self.inclinations: List[float] = []
-        self.lon_ascending_nodes: List[float] = []
-        self.states: List[str] = []
-        self.rng = rng
+        self._gr = gr
+        self._db_path = db_path
+        self.conn = db.connect(self._db_path)
+        if self.conn is not None:
+            if db.is_empty(self.conn):
+                db.setup(self.conn, overwrite=False)
+        self.inclinations: List[float] = self._init_var('inclination')
+        self.lon_ascending_nodes: List[float] = self._init_var('lon_ascending_node')
+        self.states: List[str] = self._init_var('state')
+        if db_path is not None and rng is not None:
+            msg = 'Cannot provide a seed and a database simultaneously. '
+            msg += 'This would run the risk if repeating the same entries each time the database is added to. '
+            msg += 'Entries to the database require fresh entropy, so please set `rng=None`.'
+            raise ValueError(msg)
+        self.rng = np.random.default_rng() if rng is None else rng
+    def _init_var(self,var:str):
+        if self.conn is None:
+            return []
+        res = db.get_var(
+            conn=self.conn,
+            variable=var,
+            mass_binary=self._binary.mass_binary,
+            mass_fraction=self._binary.mass_fraction,
+            semimajor_axis_binary=self._binary.semimajor_axis_binary,
+            eccentricity_binary=self._binary.eccentricity_binary,
+            mass_planet=self._mass_planet,
+            semimajor_axis_planet=self._semimajor_axis_planet,
+            true_anomaly_planet=self._true_anomaly_planet,
+            eccentricity_planet=self._eccentricity_planet,
+            arg_pariapsis_planet=self._arg_pariapsis_planet,
+            has_gr=self._gr
+        )
+        return [r[0] for r in res]
     
     def _planet(
         self,
@@ -112,7 +145,8 @@ class Sampler:
         return System(
             binary=self._binary,
             planet=self._planet(inclination=inclination, lon_ascending_node=lon_ascending_node),
-            sim=sim
+            sim=sim,
+            gr=self._gr
         )
     def get_simulation_state(
         self,
@@ -169,23 +203,51 @@ class Sampler:
             unique, counts = np.unique(arr, return_counts=True)
             return dict(zip(unique, counts)).get(state,0)/len(arr)
         return bootstrap([self.states], _statistic, confidence_level=confidence_level)
-            
+        
+    def _db_insert(self,inclination:float,lon_ascending_node:float,state:str,commit:bool=False):
+        """
+        Insert the data into the database.
+        """
+        db.insert(
+            conn=self.conn,
+            mass_binary=self._binary.mass_binary,
+            mass_fraction=self._binary.mass_fraction,
+            semimajor_axis_binary=self._binary.semimajor_axis_binary,
+            eccentricity_binary=self._binary.eccentricity_binary,
+            mass_planet=self._mass_planet,
+            semimajor_axis_planet=self._semimajor_axis_planet,
+            true_anomaly_planet=self._true_anomaly_planet,
+            eccentricity_planet=self._eccentricity_planet,
+            arg_pariapsis_planet=self._arg_pariapsis_planet,
+            inclination=inclination,
+            lon_ascending_node=lon_ascending_node,
+            has_gr=self._gr,
+            state=state,
+            commit=commit
+        )
+    
     def sim_n_samples(self,N:int):
         for _ in trange(N, desc='Sampling', unit='samples'):
             next_inclination, next_lon_ascending_node, state = self.get_next()
             self.inclinations.append(next_inclination)
             self.lon_ascending_nodes.append(next_lon_ascending_node)
             self.states.append(state)
+            self._db_insert(inclination=next_inclination,lon_ascending_node=next_lon_ascending_node,state=state)
+        self.conn.commit()
+    
+    def get_confidence_interval_width(self,state:str,confidence_level:float=0.95):
+        if len(self.states) < 2:
+            return np.inf
+        res = self.bootstrap(state,confidence_level=confidence_level)
+        return res.confidence_interval[1] - res.confidence_interval[0]
     
     def sim_until_precision(self,precision:float,batch_size:int=100,max_samples = 1000):
-        while self.n_sampled < max_samples:
+        interval_width = self.get_confidence_interval_width('l',confidence_level=0.95)
+        print(f'Starting with {self.n_sampled} samples, the confidence interval width is {interval_width:.3f}')
+        while self.n_sampled < max_samples and interval_width > precision:
             self.sim_n_samples(batch_size)
-            res = self.bootstrap('l',confidence_level=0.95)
-            confidence_interval_width = res.confidence_interval[1]-res.confidence_interval[0]
-            print(f'After {self.n_sampled} samples, the confidence interval width is {confidence_interval_width:.3f}')
-            if confidence_interval_width < precision:
-                print(f'Precision of {precision} achieved after {self.n_sampled} samples')
-                break
+            interval_width = self.get_confidence_interval_width('l',confidence_level=0.95)
+            print(f'After {self.n_sampled} samples, the confidence interval width is {interval_width:.3f}')
         
         
     

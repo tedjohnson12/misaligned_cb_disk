@@ -241,6 +241,8 @@ class Sampler:
         if len(self.states) < 2:
             return np.inf
         res = self.bootstrap(state,confidence_level=confidence_level)
+        if np.isnan(res.confidence_interval[0]) or np.isnan(res.confidence_interval[1]):
+            return np.inf
         return res.confidence_interval[1] - res.confidence_interval[0]
     
     def sim_until_precision(self,precision:float,batch_size:int=100,max_samples = 1000):

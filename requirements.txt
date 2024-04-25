@@ -1,2 +1,4 @@
 rebound
 numpy
+reboundx
+tqdm

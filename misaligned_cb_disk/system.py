@@ -36,6 +36,17 @@ The system is retrograde.
 :type: str
 """
 
+def central_difference(x,y,n:int)->Tuple[np.ndarray,np.ndarray]:
+    """
+    Take the derivative using central differences
+    """
+    dy = y[2*n:] - y[:-2*n]
+    dx = x[2*n:] - x[:-2*n]
+    _x = x[n:-n]
+    _y = dy/dx
+    assert len(_x) == len(_y), f'{len(_x)} != {len(_y)}'
+    return x[n:-n], dy/dx
+
 
 def get_wrapper(desc, total, start=0):
     """
@@ -376,7 +387,7 @@ class System:
         delta_time_capture = self.sim.particles['p'].P/capture_freq
 
         times = (start_time + np.arange(start=0,
-                 stop=delta_time_total, step=delta_time_capture))
+                 stop=delta_time_total, step=delta_time_capture)[1:])
         self.integrate(times, verbose=verbose, wrapper=wrapper)
 
     def integrate_to_get_state(
@@ -677,7 +688,7 @@ class System:
         h = self.specific_angular_momentum
         h_x = dot(h, self.x_hat)
         h_y = dot(h, self.y_hat)
-        return np.arctan2(h_x, -h_y)
+        return np.unwrap(np.arctan2(h_x, -h_y))
 
     @property
     def lon_ascending_node_dot(self) -> np.ndarray:
@@ -788,7 +799,8 @@ class System:
         excluding shifts by 2 pi.
         """
         omega = self.lon_ascending_node
-        delta_omega = np.diff(omega)
+                
+        _, delta_omega = central_difference(self.t, omega, 2)
         two_pi_shift = np.isclose(np.abs(delta_omega), 2*np.pi, atol=0.3)
         delta_omega = delta_omega[~two_pi_shift]
         return delta_omega
@@ -800,8 +812,13 @@ class System:
         This will detect changes of direction.
         """
         omega_diff = self._lon_ascending_node_diff
-        npos = np.sum(omega_diff > 0)
-        nneg = np.sum(omega_diff < 0)
+        positive = omega_diff > 0
+        negative = omega_diff < 0
+        zero = omega_diff == 0
+        two_positive_in_a_row = (positive[1:] & positive[:-1])
+        two_negative_in_a_row = (negative[1:] & negative[:-1])
+        npos = np.sum(two_positive_in_a_row)
+        nneg = np.sum(two_negative_in_a_row)
         return npos, nneg
 
     @property

@@ -1,11 +1,12 @@
 """
 Utilities for misaligned disks
 """
-
+from typing import Tuple
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from misaligned_cb_disk.system import System
-import misaligned_cb_disk.system as system
+from .system import System
+from . import system
 
 STATE_COLORS = {
     system.PROGRADE:'xkcd:crimson',

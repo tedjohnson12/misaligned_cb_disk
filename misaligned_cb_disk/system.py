@@ -47,6 +47,58 @@ def central_difference(x,y,n:int)->Tuple[np.ndarray,np.ndarray]:
     assert len(_x) == len(_y), f'{len(_x)} != {len(_y)}'
     return x[n:-n], dy/dx
 
+def get_j(
+    mb: float,
+    fb: float,
+    ab: float,
+    eb: float,
+    mp: float,
+    ap: float,
+)->float:
+    """
+    Compute the relative angular momentum of the planet relative to the binary.
+    Eq 6 from Abod et al 2022
+    
+    Parameters
+    ----------
+    mb : float
+        The mass of the binary
+    fb : float
+        The mass fraction of the binary
+    ab : float
+        The semimajor axis of the binary
+    eb : float
+        The eccentricity of the binary
+    mp : float
+        The mass of the planet
+    ap : float
+        The semimajor axis of the planet
+    
+    Returns
+    -------
+    float
+        The relative angular momentum of the planet relative to the binary.
+    """
+    num = mp/mb * np.sqrt(ap/ab) * np.sqrt(1+mp/mb)
+    den = fb * (1-fb) * np.sqrt(1-eb**2)
+    return num/den
+
+def get_j_crit(eb: float)->float:
+    """
+    Compute the critical value of the relative angular momentum of the planet relative to the binary.
+    Eq 5 from Abod et al 2022
+    
+    Parameters
+    ----------
+    eb : float
+        The eccentricity of the binary
+    
+    Returns
+    -------
+    float
+        The critical value of the relative angular momentum of the planet relative to the binary.
+    """
+    return (1+4*eb**2) / (2 + 3*eb**2)
 
 def get_wrapper(desc, total, start=0):
     """
@@ -843,7 +895,7 @@ class System:
             return True
 
     @property
-    def state(self) -> str:
+    def _state_lowj(self) -> str:
         """
         The current state of the orbit.
 
@@ -866,6 +918,47 @@ class System:
                 return PROGRADE
             else:
                 return UNKNOWN
+    @property
+    def _state(self)->str:
+        """
+        State determination for high j orbits.
+        """
+        if self.has_returned:
+            if self._crossed_x_axis:
+                domega = self._lon_ascending_node_diff
+                domega_mean = np.mean(domega)
+                if domega_mean > 0:
+                    return RETROGRADE
+                else:
+                    return PROGRADE
+            else:
+                return LIBRATING
+        else:
+            return UNKNOWN
+    
+    @property
+    def state(self)->str:
+        """
+        Get the current state of the orbit.
+        
+        Returns
+        -------
+        str
+            The state of the orbit.
+        """
+        jcrit = get_j_crit(self.binary.eccentricity_binary)
+        j = get_j(
+            mb=self.binary.mass_binary,
+            fb=self.binary.mass_fraction,
+            ab=self.binary.semimajor_axis_binary,
+            eb=self.binary.eccentricity_binary,
+            mp=self.planet.mass,
+            ap=self.planet.semimajor_axis
+        )
+        if j < 0.1*jcrit:
+            return self._state_lowj
+        else:
+            return self._state
 
     @property
     def _area(self) -> float:

@@ -9,7 +9,7 @@ class Zanazzi2018:
     """
     bibcode 2018MNRAS.473..603Z
     """
-    citet = 'Zanazzi et al. (2018)'
+    citet = 'Zanazzi & Lai (2018)'
     @staticmethod
     def i_crit(ecc_b):
         return np.arctan(np.sqrt((1-ecc_b**2)/(5*ecc_b**2)))

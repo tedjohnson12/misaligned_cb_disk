@@ -7,9 +7,10 @@ import numpy as np
 import rebound
 from scipy.stats import bootstrap
 from tqdm.auto import trange
+import warnings
 
 from misaligned_cb_disk import params
-from misaligned_cb_disk.system import System
+from misaligned_cb_disk.system import System, UNKNOWN
 from misaligned_cb_disk import db
 
 def inclination_transform(u:float)->float:
@@ -172,11 +173,16 @@ class Sampler:
             The final state of the system.
         """
         sys = self.get_system(inclination=inclination, lon_ascending_node=lon_ascending_node)
-        sys.integrate_to_get_state(
-            step=self._integration_orbit_step,
-            max_orbits=self._integration_max_orbits,
-            capture_freq=self._integration_capture_freq
-        )
+        try:
+            sys.integrate_to_get_state(
+                step=self._integration_orbit_step,
+                max_orbits=self._integration_max_orbits,
+                capture_freq=self._integration_capture_freq
+            )
+        except RuntimeError:
+            msg = f'Gave up on integration for i={inclination}, l={lon_ascending_node}'
+            warnings.warn(msg, RuntimeWarning)
+            return UNKNOWN
         return sys.state
     
     def get_next(self):
@@ -201,7 +207,13 @@ class Sampler:
     def bootstrap(self,state:str,confidence_level:float=0.95):
         def _statistic(arr:List[str]):
             unique, counts = np.unique(arr, return_counts=True)
-            return dict(zip(unique, counts)).get(state,0)/len(arr)
+            n_tot = len(arr)
+            n_state = dict(zip(unique, counts)).get(state,0)
+            n_unknown = dict(zip(unique, counts)).get(UNKNOWN,0)
+            if state == UNKNOWN:
+                return n_unknown/n_tot
+            else:
+                return (n_state + np.random.random_integers(0,n_unknown))/n_tot
         return bootstrap([self.states], _statistic, confidence_level=confidence_level)
         
     def _db_insert(self,inclination:float,lon_ascending_node:float,state:str,commit:bool=False):
@@ -245,8 +257,8 @@ class Sampler:
             return np.inf
         return res.confidence_interval[1] - res.confidence_interval[0]
     
-    def sim_until_precision(self,precision:float,batch_size:int=100,max_samples = 1000):
-        interval_width = self.get_confidence_interval_width('l',confidence_level=0.95)
+    def sim_until_precision(self,precision:float,batch_size:int=100,max_samples = 1000,confidence_level:float=0.95):
+        interval_width = self.get_confidence_interval_width('l',confidence_level=confidence_level)
         print(f'Starting with {self.n_sampled} samples, the confidence interval width is {interval_width:.3f}')
         while self.n_sampled < max_samples and interval_width > precision:
             self.sim_n_samples(batch_size)
